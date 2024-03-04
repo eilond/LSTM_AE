@@ -1,18 +1,14 @@
 import argparse
 import numpy as np
 import pandas as pd
-# from keras import Input
 from keras.optimizers import Adam
 from matplotlib import pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import KFold
-from lstm_ae_class import make_predictor_model, Autoencoder
-# from data_visualization import df_to_sequence_input
-from keras.layers import LSTM, TimeDistributed, Dense, RepeatVector
-from keras.models import Model
+from lstm_ae_class import make_predictor_model
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--epochs', type=int, default=10)
+parser.add_argument('--epochs', type=int, default=100)
 parser.add_argument('--optimizer', type=str, default='Adam')
 parser.add_argument('--learning_rate', type=float, default=1e-3)
 parser.add_argument('--gradient_clipping', type=float, default=1.0)
@@ -56,7 +52,7 @@ def process_data_monthly(df):
     return df_monthly
 
 
-def prepare_data_by_symbol_multi_step(df, N):
+def prepare_data_by_symbol_multi_step(df, time_steps):
     X, Y, symbols = [], [], []
     scaler = MinMaxScaler(feature_range=(0, 1))
     df_monthly = process_data_monthly(df)
@@ -68,9 +64,9 @@ def prepare_data_by_symbol_multi_step(df, N):
         # take only stock with all the data
         if(len(scaled_data) == 48):
             # Create sequences for each symbol
-            for i in range(0, len(symbol_df) -1 - N):
-                X.append(scaled_data[i :i + N])
-                Y.append(scaled_data[i + 1 + N])  # Next day's 'high' value as label
+            for i in range(0, len(symbol_df) -1 - time_steps):
+                X.append(scaled_data[i :i + time_steps])
+                Y.append(scaled_data[i + time_steps])  # Next day's 'high' value as label
                 symbols.append(symbol)  # Keep track of the symbol for each sequence
 
     X, Y = np.array(X), np.array(Y)
@@ -82,12 +78,9 @@ def create_and_train_lstmae_predictor(time_steps):
         'Adam': Adam,
     }
 
-    # Load the S&P500 stock price dataset
     df = pd.read_csv('SP 500 Stock Prices 2014-2017.csv')
     first_day_each_month, Y, symbols = prepare_data_by_symbol_multi_step(df, time_steps)
     kf = KFold(n_splits=2, shuffle=True, random_state=42)
-    # grouped = first_day_each_month.groupby('symbol')
-    # # print(grouped)
 
     # Cross-validation loop
     best_model = None
@@ -130,13 +123,17 @@ if __name__ == "__main__":
 
     plt.figure(figsize=(14, 7))
     plt.plot(best_history.history['reconstruction_loss'], label='Reconstruction Loss')
-    plt.title(f'training loss vs. time')
+    plt.title(f'training loss vs. time', fontsize=20)
+    plt.xlabel('Time', fontsize=20)
+    plt.ylabel('Loss', fontsize=20)
     plt.legend()
     plt.show()
 
     plt.figure(figsize=(14, 7))
     plt.plot(best_history.history['prediction_loss'], label='Prediction Loss')
-    plt.title(f'prediction loss vs. time')
+    plt.title(f'prediction loss vs. time', fontsize=20)
+    plt.xlabel('Time', fontsize=20)
+    plt.ylabel('Loss', fontsize=20)
     plt.legend()
     plt.show()
 

@@ -24,7 +24,6 @@ class Autoencoder(Model):
         decoded = self.decoder(repeated)
         outputs = self.time_distributed(decoded)
         return outputs
-        # return decoded
 
 
 def make_predictor_model(hidden_state_dims, time_steps, data_features):

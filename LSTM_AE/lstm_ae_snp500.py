@@ -1,5 +1,4 @@
 import argparse
-
 import numpy as np
 import pandas as pd
 from keras.optimizers import Adam
@@ -7,13 +6,12 @@ from matplotlib import pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 from lstm_ae_label_prediction import process_data_monthly
 from sklearn.model_selection import KFold
-from data_visualization import df_to_sequence_input
 from lstm_ae_class import Autoencoder
 
 
 scaler = MinMaxScaler(feature_range=(0, 1))
 parser = argparse.ArgumentParser()
-parser.add_argument('--epochs', type=int, default=10)
+parser.add_argument('--epochs', type=int, default=1000)
 parser.add_argument('--optimizer', type=str, default='Adam')
 parser.add_argument('--learning_rate', type=float, default=1e-3)
 parser.add_argument('--gradient_clipping', type=float, default=1.0)
@@ -32,7 +30,8 @@ def prepare_data_by_symbol(df):
         symbol_df = df_monthly[df_monthly['symbol'] == symbol]
         scaled_data = scaler.fit_transform(symbol_df[['high']])
         # print(scaled_data['high'])
-        if(len(scaled_data) == 48): # take only stock with all the data
+        # take only stock with all the data
+        if len(scaled_data) == 48:
             X.append(scaled_data)
             symbols.append(symbol)
 
@@ -47,7 +46,8 @@ def prepare_data_rec(df):
     for symbol in df_monthly['symbol'].unique():
         symbol_df = df_monthly[df_monthly['symbol'] == symbol]
         scaled_data = scaler.fit_transform(symbol_df[['high']])
-        if(len(scaled_data) == 48): # take only stock with all the data
+        # take only stock with all the data
+        if len(scaled_data) == 48:
             X.append(scaled_data)
             symbols.append(symbol)
     return np.array(X), symbols
@@ -62,8 +62,6 @@ def create_and_train_lstmae_reconstructor(time_steps):
     df = pd.read_csv('SP 500 Stock Prices 2014-2017.csv')
     first_day_each_month, symbols = prepare_data_by_symbol(df)
     kf = KFold(n_splits=2, shuffle=True, random_state=42)
-    # grouped = first_day_each_month.groupby('symbol')
-    # # print(grouped)
 
     # Cross-validation loop
     best_model = None
@@ -116,12 +114,13 @@ if __name__ == '__main__':
         reconstructed_data = reconstructed_data.reshape(-1, 1)
         reconstructed_prices_multi_step = scaler.inverse_transform(reconstructed_data).flatten()
 
+        stock_sequence = scaler.inverse_transform(stock_sequence.reshape(-1, 1)).flatten()
 
         plt.figure(figsize=(14, 7))
-        plt.plot(stock_sequence.flatten(), label='Actual High Prices')
-        plt.plot(reconstructed_data, label='Reconstructed High Prices')
+        plt.plot(stock_sequence, label='Actual High Prices')
+        plt.plot(reconstructed_prices_multi_step, label='Reconstructed High Prices')
         plt.title(f'{symbol} - Actual vs Reconstructed High Prices', fontsize=20)
-        plt.xlabel('Time Steps', fontsize=20)
+        plt.xlabel('Sample Number (per month)', fontsize=20)
         plt.ylabel('High Prices', fontsize=20)
         plt.legend()
         plt.grid(True)
