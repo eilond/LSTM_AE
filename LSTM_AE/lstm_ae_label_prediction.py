@@ -1,17 +1,18 @@
 import argparse
 import numpy as np
 import pandas as pd
-from keras import Input
+# from keras import Input
 from keras.optimizers import Adam
 from matplotlib import pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import KFold
+from lstm_ae_class import make_predictor_model, Autoencoder
 # from data_visualization import df_to_sequence_input
 from keras.layers import LSTM, TimeDistributed, Dense, RepeatVector
 from keras.models import Model
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--epochs', type=int, default=100)
+parser.add_argument('--epochs', type=int, default=10)
 parser.add_argument('--optimizer', type=str, default='Adam')
 parser.add_argument('--learning_rate', type=float, default=1e-3)
 parser.add_argument('--gradient_clipping', type=float, default=1.0)
@@ -34,23 +35,7 @@ def df_to_sequence_input(df, time_steps):
     # print(np.array(subsequences).shape)
     return np.array(subsequences), np.array(sub_seq_labels)
 
-def make_model(hidden_state_dims, time_steps, data_features):
-    input_layer = Input(shape=(time_steps, data_features))
-    encoded = LSTM(hidden_state_dims, activation='relu',return_sequences=False)(input_layer)
-    decoded = RepeatVector(time_steps)(encoded)
-    decoded = LSTM(hidden_state_dims, activation='relu', return_sequences=True)(decoded)
-    reconstruction = TimeDistributed(Dense(data_features), name='reconstruction')(decoded)
-    prediction = TimeDistributed(Dense(data_features), name='prediction')(decoded[:, -1:, :])  # Assuming prediction structure
-
-    model = Model(inputs=input_layer, outputs=[reconstruction, prediction])
-    return model
-
-
-def prepare_data_by_symbol_multi_step(df, N):
-
-    X, Y, symbols = [], [], []
-    scaler = MinMaxScaler(feature_range=(0, 1))
-
+def process_data_monthly(df):
     # Ensure 'date' is a datetime column
     df['date'] = pd.to_datetime(df['date'])
 
@@ -68,7 +53,32 @@ def prepare_data_by_symbol_multi_step(df, N):
     df_monthly = df_monthly[['symbol', 'high']]
     # df=df[df['symbol'] == 'AMZN']
     df_monthly = df_monthly.dropna()
+    return df_monthly
 
+
+def prepare_data_by_symbol_multi_step(df, N):
+
+    X, Y, symbols = [], [], []
+    scaler = MinMaxScaler(feature_range=(0, 1))
+
+    # # Ensure 'date' is a datetime column
+    # df['date'] = pd.to_datetime(df['date'])
+    #
+    # # Create separate year and month columns for grouping
+    # df['year'] = df['date'].dt.year
+    # df['month'] = df['date'].dt.month
+    #
+    # # Group by symbol, year, and month, then take the first entry of each group
+    # df_monthly = df.groupby(['symbol', 'year', 'month']).first().reset_index()
+    #
+    # # Make sure 'date' is not duplicated in df_monthly
+    # if 'date' in df_monthly.columns:
+    #     df_monthly = df_monthly.drop(columns=['date'])
+    #
+    # df_monthly = df_monthly[['symbol', 'high']]
+    # # df=df[df['symbol'] == 'AMZN']
+    # df_monthly = df_monthly.dropna()
+    df_monthly = process_data_monthly(df)
     # Iterate over each symbol
     for symbol in df_monthly['symbol'].unique():
         symbol_df = df_monthly[df_monthly['symbol'] == symbol]
@@ -84,38 +94,6 @@ def prepare_data_by_symbol_multi_step(df, N):
     X, Y = np.array(X), np.array(Y)
     return X, Y, symbols
 
-def prepare_data_by_symbol(df):
-
-    X, symbols = [], []
-    scaler = MinMaxScaler(feature_range=(0, 1))
-
-    # Ensure 'date' is a datetime column
-    df['date'] = pd.to_datetime(df['date'])
-
-    # Create separate year and month columns for grouping
-    df['year'] = df['date'].dt.year
-    df['month'] = df['date'].dt.month
-
-    # Group by symbol, year, and month, then take the first entry of each group
-    df_monthly = df.groupby(['symbol', 'year', 'month']).first().reset_index()
-
-    # Make sure 'date' is not duplicated in df_monthly
-    if 'date' in df_monthly.columns:
-        df_monthly = df_monthly.drop(columns=['date'])
-
-    df_monthly = df_monthly[['symbol', 'high']]
-    # df=df[df['symbol'] == 'AMZN']
-    df_monthly = df_monthly.dropna()
-
-    # Iterate over each symbol
-    for symbol in df_monthly['symbol'].unique():
-        symbol_df = df_monthly[df_monthly['symbol'] == symbol]
-        scaled_data = scaler.fit_transform(symbol_df[['high']])
-        if(len(scaled_data[['high']]) == 48): # take only stock with all the data
-            X.append(scaled_data[['high']])
-            symbols.append(symbol)
-
-    return np.array(X), symbols
 
 def create_and_train_lstmae_predictor(time_steps):
     optimizer_class = {
@@ -141,7 +119,7 @@ def create_and_train_lstmae_predictor(time_steps):
         X_test, labels = first_day_each_month[test_index], Y[test_index]
 
         # Initialize the model
-        autoencoder = make_model(hidden_state_dims=args.hidden_state_size, time_steps=time_steps,
+        autoencoder = make_predictor_model(hidden_state_dims=args.hidden_state_size, time_steps=time_steps,
                                   data_features=data_features)
 
         # print(X_train.shape,X_test.shape)
@@ -161,9 +139,7 @@ def create_and_train_lstmae_predictor(time_steps):
             best_model = autoencoder
             best_history = history
 
-        return best_model, best_history
-
-
+    return best_model, best_history
 
 
 if __name__ == "__main__":

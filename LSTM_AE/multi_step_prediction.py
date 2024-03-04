@@ -4,10 +4,23 @@ from matplotlib import pyplot as plt
 from matplotlib.patches import Rectangle
 from sklearn.preprocessing import MinMaxScaler
 from data_visualization import df_to_sequence_input
-from lstm_ae_label_prediction import create_and_train_lstmae_predictor
-
+from lstm_ae_label_prediction import create_and_train_lstmae_predictor, process_data_monthly
 
 scaler = MinMaxScaler(feature_range=(0, 1))
+
+
+def prepare_data_rec(df):
+    X, symbols = [], []
+    df_monthly = process_data_monthly(df)
+    # Iterate over each symbol
+    for symbol in df_monthly['symbol'].unique():
+        symbol_df = df_monthly[df_monthly['symbol'] == symbol]
+        scaled_data = scaler.fit_transform(symbol_df[['high']])
+        if(len(scaled_data) == 48): # take only stock with all the data
+            X.append(scaled_data)
+            symbols.append(symbol)
+
+    return np.array(X), symbols
 
 def prepare_data_seq(df_monthly, N):
 
@@ -37,22 +50,23 @@ if __name__ == "__main__":
 
     # high_data = scaler.fit_transform(df_filtered[['high']].values)
 
-    df['date'] = pd.to_datetime(df['date'])
-
-    # Create separate year and month columns for grouping
-    df['year'] = df['date'].dt.year
-    df['month'] = df['date'].dt.month
-
-    # Group by symbol, year, and month, then take the first entry of each group
-    df_monthly = df.groupby(['symbol', 'year', 'month']).first().reset_index()
-
-    # Make sure 'date' is not duplicated in df_monthly
-    if 'date' in df_monthly.columns:
-        df_monthly = df_monthly.drop(columns=['date'])
-
-    df_monthly = df_monthly[['symbol', 'high']]
-    # df=df[df['symbol'] == 'AMZN']
-    df_monthly = df_monthly.dropna()
+    # df['date'] = pd.to_datetime(df['date'])
+    #
+    # # Create separate year and month columns for grouping
+    # df['year'] = df['date'].dt.year
+    # df['month'] = df['date'].dt.month
+    #
+    # # Group by symbol, year, and month, then take the first entry of each group
+    # df_monthly = df.groupby(['symbol', 'year', 'month']).first().reset_index()
+    #
+    # # Make sure 'date' is not duplicated in df_monthly
+    # if 'date' in df_monthly.columns:
+    #     df_monthly = df_monthly.drop(columns=['date'])
+    #
+    # df_monthly = df_monthly[['symbol', 'high']]
+    # # df=df[df['symbol'] == 'AMZN']
+    # df_monthly = df_monthly.dropna()
+    df_monthly = process_data_monthly(df)
     df_monthly = df_monthly[df_monthly['symbol'] == 'AMZN']
 
     multi_steps_model, _ = create_and_train_lstmae_predictor(time_steps=24)
@@ -110,14 +124,21 @@ if __name__ == "__main__":
     plt.grid(True)
     plt.show()
 
+    # print(f'this is rec len:{len(reconstructed_prices_single_step)}')
+    # print(f'this is act len:{len(actual_prices)}')
     plt.figure(figsize=(14, 7))
     plt.plot(reconstructed_prices_single_step, label='Reconstructed High Prices')
-    plt.plot(actual_prices, label='Actual High Prices')
+    plt.plot(actual_prices[:-2], label='Actual High Prices')
     plt.title(f'AMZ stock- Actual vs Predicted High Prices for Single step')
     plt.xlabel('Time Step')
     plt.ylabel('High Prices')
     plt.legend()
     plt.grid(True)
     plt.show()
+
+
+
+
+
 
 
