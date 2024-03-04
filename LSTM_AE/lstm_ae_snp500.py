@@ -118,11 +118,11 @@ if __name__ == '__main__':
 
 
         plt.figure(figsize=(14, 7))
-        plt.plot(stock_sequence.flatten(), label='Actual High Prices', fontsize=20)
-        plt.plot(reconstructed_data, label='Reconstructed High Prices', fontsize=20)
+        plt.plot(stock_sequence.flatten(), label='Actual High Prices')
+        plt.plot(reconstructed_data, label='Reconstructed High Prices')
         plt.title(f'{symbol} - Actual vs Reconstructed High Prices', fontsize=20)
-        plt.xlabel('Time Steps')
-        plt.ylabel('High Prices')
+        plt.xlabel('Time Steps', fontsize=20)
+        plt.ylabel('High Prices', fontsize=20)
         plt.legend()
         plt.grid(True)
         plt.show()

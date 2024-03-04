@@ -23,17 +23,17 @@ args = parser.parse_args()
 
 
 def df_to_sequence_input(df, time_steps):
-    # print(df.shape)
-    print(f'df len is{len(df)}')
     subsequences = []
     sub_seq_labels = []
+
     for i in range(len(df) - time_steps):
         row = df[i: i + time_steps]
         subsequences.append(row)
         label = df[i + time_steps]
         sub_seq_labels.append(label)
-    # print(np.array(subsequences).shape)
+
     return np.array(subsequences), np.array(sub_seq_labels)
+
 
 def process_data_monthly(df):
     # Ensure 'date' is a datetime column
@@ -57,37 +57,19 @@ def process_data_monthly(df):
 
 
 def prepare_data_by_symbol_multi_step(df, N):
-
     X, Y, symbols = [], [], []
     scaler = MinMaxScaler(feature_range=(0, 1))
-
-    # # Ensure 'date' is a datetime column
-    # df['date'] = pd.to_datetime(df['date'])
-    #
-    # # Create separate year and month columns for grouping
-    # df['year'] = df['date'].dt.year
-    # df['month'] = df['date'].dt.month
-    #
-    # # Group by symbol, year, and month, then take the first entry of each group
-    # df_monthly = df.groupby(['symbol', 'year', 'month']).first().reset_index()
-    #
-    # # Make sure 'date' is not duplicated in df_monthly
-    # if 'date' in df_monthly.columns:
-    #     df_monthly = df_monthly.drop(columns=['date'])
-    #
-    # df_monthly = df_monthly[['symbol', 'high']]
-    # # df=df[df['symbol'] == 'AMZN']
-    # df_monthly = df_monthly.dropna()
     df_monthly = process_data_monthly(df)
-    # Iterate over each symbol
+
     for symbol in df_monthly['symbol'].unique():
         symbol_df = df_monthly[df_monthly['symbol'] == symbol]
         scaled_data = scaler.fit_transform(symbol_df[['high']])
-        # print(scaled_data)
-        if(len(scaled_data) == 48): # take only stock with all the data
+
+        # take only stock with all the data
+        if(len(scaled_data) == 48):
             # Create sequences for each symbol
             for i in range(0, len(symbol_df) -1 - N):
-                X.append(scaled_data[i :i + N])  # Assuming 'high' is the only feature we're interested in
+                X.append(scaled_data[i :i + N])
                 Y.append(scaled_data[i + 1 + N])  # Next day's 'high' value as label
                 symbols.append(symbol)  # Keep track of the symbol for each sequence
 
